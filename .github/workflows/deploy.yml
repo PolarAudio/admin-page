@@ -6,10 +6,9 @@ on:
       - main # Your source code branch
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    # IMPORTANT: Add this line to specify the environment
-    environment: github-pages # This tells the job to use secrets from the 'github-pages' environment
+    environment: github-pages
 
     steps:
       - name: Checkout Repository
@@ -26,7 +25,6 @@ jobs:
       - name: Build React App
         run: npm run build
         env:
-          # These will now be correctly pulled from your 'github-pages' environment secrets
           VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -35,9 +33,22 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
           VITE_BACKEND_API_URL: ${{ secrets.VITE_BACKEND_API_URL }}
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist # Or ./build
-          publish_branch: gh-pages
+          path: ./dist # The directory containing your built files
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
