@@ -1,0 +1,6 @@
+{
+  "appId": "com.polaraudio.adminpage",
+  "appName": "AdminPage",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
