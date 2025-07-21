@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to get the current user's UID
+    function getUserId() {
+      return request.auth.uid;
+    }
+
+    // Helper function to check if the current user is an admin
+    // This now correctly points to the path used by AdminPage.jsx
+    // Added 'exists()' check for robustness
+    function isAdmin() {
+      let profileRef = /databases/$(database)/documents/artifacts/booking-app-1af02/users/$(getUserId())/profiles/userProfile;
+      return isAuthenticated() &&
+             exists(profileRef) && // Check if the profile document exists
+             get(profileRef).data.role == 'admin';
+    }
+
+    // Rule for the top-level 'users' collection (if you still use it for something else, e.g.,basic user info)
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && getUserId() == userId;
+    }
+
+    // Match any document within your specific application's data path
+    // Changed {appId} to a wildcard to match dynamic APP_ID_FOR_FIRESTORE_PATH
+    match /artifacts/{appId} {
+
+      // Rule for user-specific private data: user profiles under artifacts.
+      // Users can read/write their own profile.
+      match /users/{userId}/profiles/userProfile {
+        allow read, write: if isAuthenticated() && getUserId() == userId;
+        // Admins should also be able to read all user profiles if needed for admin functions
+        allow read: if isAdmin(); // Admins can read all user profiles
+      }
+
+      // Allow admins to list/read all user documents (not just profiles)
+      match /artifacts/{appId}/users/{userId} {
+        allow list, read: if isAdmin();
+      }
+
+      // IMPORTANT: For isAdmin() to work, the user's profile document (artifacts/booking-app-1af02/users/{userId}/profiles/userProfile)
+      // must exist and contain a field 'role' with the value 'admin'.
+      // Example: { displayName: "Admin User", email: "admin@example.com", role: "admin" }
+
+      // Specific rule for individual user bookings.
+      // A user can read, create, update, delete their OWN bookings.
+      // Admins can also read, update, delete these specific bookings.
+      match /users/{userId}/bookings/{bookingId} {
+        allow read, create, update, delete: if isAuthenticated() && getUserId() == userId;
+        // Additionally, allow an admin to read, update, or delete any specific booking.
+        allow read, update, delete: if isAdmin();
+      }
+
+      // Collection Group rule for 'bookings' subcollections.
+      // This rule is crucial for the AdminPage's `collectionGroup(db, 'bookings')` query,
+      // allowing it to fetch all booking documents across all users.
+      match /{path=**}/bookings/{bookingId} {
+        allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+        // Only admins can create, update, or delete any booking.
+        allow create, update, delete: if isAdmin();
+      }
+    }
+  }
+}
