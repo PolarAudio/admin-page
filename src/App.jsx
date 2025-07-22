@@ -22,6 +22,13 @@ function App() {
         const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/`); // Ping the backend root
         const data = await response.json();
         const isCurrentlyOnline = response.ok && data.status === 'online';
+        
+        console.log("Backend Status Check:");
+        console.log("  response.ok:", response.ok);
+        console.log("  data.status:", data.status);
+        console.log("  isCurrentlyOnline:", isCurrentlyOnline);
+        console.log("  previousBackendStatus.current:", previousBackendStatus.current);
+
         setIsBackendOnline(isCurrentlyOnline);
 
         // If backend was offline and is now online, trigger a full page reload
