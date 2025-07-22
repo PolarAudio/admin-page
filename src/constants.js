@@ -10,4 +10,4 @@ export const DJ_EQUIPMENT = [
 	{ id: 8, name: 'RMX 1000', type: 'Effect', icon: '🎛️', category: 'extra' },
 	{ id: 9, name: 'DJS 1000', type: 'Sampler', icon: '🎵', category: 'extra' }
 ];
-export const ROOM_RATE_PER_HOUR = 200000;
+export const ROOM_RATE_PER_HOUR = 100000;
