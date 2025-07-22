@@ -50,7 +50,9 @@ function App() {
           const appIdFromCanvas = 'booking-app-1af02'; // Hardcoded, ensure consistency
           const userProfilePath = `artifacts/${appIdFromCanvas}/users/${currentUser.uid}/profiles/userProfile`;
           console.log("App.jsx: Checking admin role at path:", userProfilePath);
+          console.log("App.jsx: Value of db before doc call:", db);
           const userDocRef = doc(db, userProfilePath);
+          console.log("App.jsx: Value of userDocRef before get call:", userDocRef);
           const userDocSnap = await userDocRef.get();
 
           if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
