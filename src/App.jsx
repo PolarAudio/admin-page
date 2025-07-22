@@ -12,6 +12,28 @@ function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authCheckComplete, setAuthCheckComplete] = useState(false);
   const [accessError, setAccessError] = useState(null);
+  const [isBackendOnline, setIsBackendOnline] = useState(true); // New state for backend status
+
+  // Effect for backend health check
+  useEffect(() => {
+    const checkBackendStatus = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/`); // Ping the backend root
+        setIsBackendOnline(response.ok); // Set true if response is ok (200-299 status)
+      } catch (error) {
+        console.error("Backend health check failed:", error);
+        setIsBackendOnline(false);
+      }
+    };
+
+    // Initial check
+    checkBackendStatus();
+
+    // Set up interval for periodic checks (e.g., every 10 seconds)
+    const intervalId = setInterval(checkBackendStatus, 10000); 
+
+    return () => clearInterval(intervalId); // Clean up interval on unmount
+  }, []);
 
   useEffect(() => {
     console.log("App.jsx: useEffect - onAuthStateChanged listener setup");
@@ -24,27 +46,12 @@ function App() {
           const idToken = await currentUser.getIdToken();
           console.log("App.jsx: User ID Token obtained.");
 
-          // Verify admin role with backend (optional, but good practice if role is managed there)
-          // For now, we'll assume Firebase user is enough for admin check, or backend will verify token
-          // If backend manages roles, you might have an endpoint like /api/admin/check-role
-          // const roleCheckResponse = await fetch('/api/admin/check-role', {
-          //   headers: { 'Authorization': `Bearer ${idToken}` }
-          // });
-          // const roleData = await roleCheckResponse.json();
-          // setIsAdmin(roleData.isAdmin);
-
-          // For now, assuming admin status is determined by a simple check or is always true for logged in users
-          // if a dedicated admin login is used.
-          // If you have a specific admin UID or email, you can check it here.
-          // For this example, let's assume any logged-in user is an admin for simplicity, or you can add a check.
-          // For a real app, you'd fetch the role from Firestore or a backend service.
-
           // Re-adding the Firestore admin check based on previous context
           const appIdFromCanvas = 'booking-app-1af02'; // Hardcoded, ensure consistency
           const userProfilePath = `artifacts/${appIdFromCanvas}/users/${currentUser.uid}/profiles/userProfile`;
           console.log("App.jsx: Checking admin role at path:", userProfilePath);
           const userDocRef = doc(db, userProfilePath);
-          const userDocSnap = await getDoc(userDocRef);
+          const userDocSnap = await userDocRef.get();
 
           if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
             setIsAdmin(true);
@@ -101,6 +108,18 @@ function App() {
     return <div className="text-center text-orange-200 text-xl mt-8">Checking Admin Permissions...</div>;
   }
 
+  // Display backend offline message if applicable
+  if (!isBackendOnline) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+        <div className="bg-red-800 p-8 rounded-lg shadow-xl w-full max-w-md border border-red-700 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">Server Offline or Under Maintenance</h2>
+          <p className="text-gray-200 mb-6">We are currently experiencing technical difficulties. Please try again later.</p>
+        </div>
+      </div>
+    );
+  }
+
   // If authentication check is complete and there's no user, show the Login page
   if (!user) {
     return (
@@ -117,7 +136,7 @@ function App() {
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
           <div className="bg-gray-800 p-8 rounded-lg shadow-xl w-full max-w-md border border-gray-700 text-center">
             <h2 className="text-3xl font-bold text-red-500 mb-4">Access Denied</h2>
-            <p className="text-gray-300 mb-6">{accessError || "You are not authorized to view this page."}</p>
+            <p className="text-gray-300 mb-6">{accessError || "You do not have administrator privileges."}</p>
             <button
               onClick={handleLogout}
               className="py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
