@@ -1,6 +1,5 @@
 {
-  "appId": "com.polaraudio.adminpage",
-  "appName": "AdminPage",
-  "webDir": "dist",
-  "bundledWebRuntime": false
+  "appId": "com.djbooking.admin",
+  "appName": "DJBookingAdmin",
+  "webDir": "dist"
 }

@@ -275,7 +275,11 @@ app.get('/api/admin/users', authenticate, adminOnly, async (req, res) => {
 
 app.post('/api/admin/bookings', authenticate, adminOnly, async (req, res) => {
     // Add admin role check here in the future
-    const { bookingData, userName, userEmail } = req.body;""
+    const { bookingData, userName, userEmail } = req.body;"""
+
+    try {
+        console.log('Attempting to get user by email:', userEmail);
+        const userRecord = await admin.auth().getUserByEmail(userEmail);""
 
     try {
         const userRecord = await admin.auth().getUserByEmail(userEmail);
