@@ -131,6 +131,7 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users }) => {
             }
         }
 
+        console.log("Sending booking payload with userEmail:", bookingPayload.userEmail);
         onCreate(bookingPayload);
     };
 	const toggleEquipment = useCallback((equipment) => {
