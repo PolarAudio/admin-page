@@ -1,9 +1,23 @@
 import React from 'react';
 import Modal from './Modal';
-import { formatIDR, formatDate, formatTime } from '../../src/utils';
+import { formatIDR, formatDate, formatTime } from '../utils';
 
 const BookingDetailsModal = ({ show, onClose, booking }) => {
     if (!booking) return null;
+
+    const formatEquipment = (equipment) => {
+        if (!equipment || equipment.length === 0) return 'None';
+        const players = equipment.filter(item => item.category === 'player').map(item => item.name || item.id);
+        const mixers = equipment.filter(item => item.category === 'mixer').map(item => item.name || item.id);
+        const extras = equipment.filter(item => item.category === 'extra').map(item => item.name || item.id);
+
+        let equipmentDetails = [];
+        if (players.length > 0) equipmentDetails.push(`Players: ${players.join(', ')}`);
+        if (mixers.length > 0) equipmentDetails.push(`Mixers: ${mixers.join(', ')}`);
+        if (extras.length > 0) equipmentDetails.push(`Extras: ${extras.join(', ')}`);
+
+        return equipmentDetails.join('\n');
+    };
 
     return (
         <Modal show={show} onClose={onClose} title="Booking Details">
@@ -21,11 +35,7 @@ const BookingDetailsModal = ({ show, onClose, booking }) => {
                 {booking.equipment && booking.equipment.length > 0 && (
                     <div>
                         <strong>Equipment:</strong>
-                        <ul className="list-disc list-inside ml-4">
-                            {booking.equipment.map((item, index) => (
-                                <li key={index}>{item.name}</li>
-                            ))}
-                        </ul>
+                        <pre className="whitespace-pre-wrap text-gray-400 mt-2 p-3 bg-gray-700 rounded-lg">{formatEquipment(booking.equipment)}</pre>
                     </div>
                 )}
             </div>
@@ -42,3 +52,4 @@ const BookingDetailsModal = ({ show, onClose, booking }) => {
 };
 
 export default BookingDetailsModal;
+

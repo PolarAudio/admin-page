@@ -82,7 +82,7 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users }) => {
                     duration: formData.duration,
                     total: formData.total,
                     paymentStatus: formData.paymentStatus,
-                    equipment: formData.selectedEquipment.map(id => DJ_EQUIPMENT.find(eq => eq.id === id)).filter(Boolean), // Include selected equipment as objects
+                    equipment: selectedEquipment.map(eq => ({ id: eq.id, name: eq.name, type: eq.type, category: eq.category })),
                 },
                 userId: selectedUser.id,
                 userName: selectedUser.displayName,
@@ -118,7 +118,7 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users }) => {
                         duration: formData.duration,
                         total: formData.total,
                         paymentStatus: formData.paymentStatus,
-                        equipment: formData.selectedEquipment.map(id => DJ_EQUIPMENT.find(eq => eq.id === id)).filter(Boolean), // Include selected equipment as objects
+                        equipment: selectedEquipment.map(eq => ({ id: eq.id, name: eq.name, type: eq.type, category: eq.category })),
                     },
                     userId: finalUserId,
                     userName: finalUserName,
@@ -259,7 +259,14 @@ const EditBookingForm = ({ booking, onUpdate, onCancel }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        onUpdate(formData.id, formData);
+        const updatedData = {
+            ...formData,
+            equipment: formData.selectedEquipment.map(id => {
+                const equipment = DJ_EQUIPMENT.find(eq => eq.id === id);
+                return { id: equipment.id, name: equipment.name, type: equipment.type, category: equipment.category };
+            }),
+        };
+        onUpdate(formData.id, updatedData);
     };
 
     return (
@@ -360,6 +367,10 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [users, setUsers] = useState([]); // New state for users
     const [showDetailsModal, setShowDetailsModal] = useState(false); // New state
     const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null); // New state
+    const [creditsError, setCreditsError] = useState(null);
+    const [creditsSuccess, setCreditsSuccess] = useState(null);
+    const [selectedUserIdForCredits, setSelectedUserIdForCredits] = useState('');
+    const [creditsAmount, setCreditsAmount] = useState(1);
 
     const handleShowDetails = useCallback((booking) => {
         setSelectedBookingForDetails(booking);
@@ -491,7 +502,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                         duration: updatedData.duration,
                         total: updatedData.total,
                         paymentStatus: updatedData.paymentStatus,
-                        equipment: updatedData.selectedEquipment.map(id => DJ_EQUIPMENT.find(eq => eq.id === id)).filter(Boolean), // Ensure equipment is included as objects
+                        equipment: updatedData.equipment.map(eq => ({ id: eq.id, name: eq.name, type: eq.type, category: eq.category })),
                     },
                     editingBookingId: id,
                     userId: updatedData.userId,
@@ -545,6 +556,34 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         }
     }, [currentUser, fetchBookings]);
 
+    const handleAddCredits = useCallback(async () => {
+        if (!selectedUserIdForCredits || !creditsAmount) {
+            setCreditsError("Please select a user and enter an amount.");
+            return;
+        }
+        setCreditsError(null);
+        setCreditsSuccess(null);
+        try {
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/add-credits`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ userId: selectedUserIdForCredits, amount: parseInt(creditsAmount, 10) }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to add credits.');
+            }
+            setCreditsSuccess(data.message);
+            fetchUsers(); // Re-fetch users to update credits display
+        } catch (err) {
+            setCreditsError(err.message);
+        }
+    }, [currentUser, selectedUserIdForCredits, creditsAmount, fetchUsers]);
+
     if (loading) return <div className="text-center text-orange-200 text-xl mt-8">Loading Admin Dashboard...</div>;
     if (error) return <div className="text-center text-red-500 text-xl mt-8">Error: {error}</div>;
 
@@ -579,6 +618,22 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             </button>
                         </div>
                     )}
+                </div>
+
+                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
+                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">Add Credits to User</h2>
+                    {creditsError && <p className="text-red-500 text-center mb-4">{creditsError}</p>}
+                    {creditsSuccess && <p className="text-green-500 text-center mb-4">{creditsSuccess}</p>}
+                    <div className="flex flex-col space-y-4">
+                        <select value={selectedUserIdForCredits} onChange={(e) => setSelectedUserIdForCredits(e.target.value)} className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
+                            <option value="" disabled>-- Select a user --</option>
+                            {users.map(user => (
+                                <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.id}) - Credits: {user.credits || 0}</option>
+                            ))}
+                        </select>
+                        <input type="number" value={creditsAmount} onChange={(e) => setCreditsAmount(e.target.value)} placeholder="Amount" className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
+                        <button onClick={handleAddCredits} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg">Add Credits</button>
+                    </div>
                 </div>
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
