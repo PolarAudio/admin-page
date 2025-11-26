@@ -30,6 +30,7 @@ const BookingDetailsModal = ({ show, onClose, booking }) => {
                 <p><strong>Duration:</strong> {booking.duration} hours</p>
                 <p><strong>Total:</strong> {formatIDR(booking.total)}</p>
                 <p><strong>Payment Status:</strong> {booking.paymentStatus}</p>
+                <p><strong>Status:</strong> <span className={`font-semibold ${booking.status === 'booking confirmed' ? 'text-green-400' : 'text-yellow-400'}`}>{booking.status}</span></p>
                 <p><strong>Booking ID:</strong> {booking.id}</p>
                 {booking.calendarEventId && <p><strong>Calendar Event ID:</strong> {booking.calendarEventId}</p>}
                 {booking.equipment && booking.equipment.length > 0 && (

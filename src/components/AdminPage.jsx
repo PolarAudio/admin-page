@@ -10,7 +10,7 @@ import EquipmentItem from '../components/EquipmentItem';
 import BookingDetailsModal from './BookingDetailsModal'; // New Import
 
 // CreateBookingForm Component
-const CreateBookingForm = ({ onCreate, onCancel, currentUser, users }) => {
+const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmitting }) => {
     const [formData, setFormData] = useState({
         userName: '',
         userId: '',
@@ -224,15 +224,15 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users }) => {
                 </div>
             </div>
             <div className="flex justify-end space-x-4 mt-6">
-                <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition shadow-lg">Create Booking</button>
-                <button type="button" onClick={onCancel} className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg">Cancel</button>
+                <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition shadow-lg" disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create Booking'}</button>
+                <button type="button" onClick={onCancel} className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg" disabled={isSubmitting}>Cancel</button>
             </div>
         </form>
     );
 };
 
 // EditBookingForm Component
-const EditBookingForm = ({ booking, onUpdate, onCancel }) => {
+const EditBookingForm = ({ booking, onUpdate, onCancel, isSubmitting }) => {
     const [formData, setFormData] = useState({
         ...booking,
         selectedEquipment: booking.equipment ? booking.equipment.map(eq => eq.id) : [],
@@ -347,8 +347,8 @@ const EditBookingForm = ({ booking, onUpdate, onCancel }) => {
                 </div>
             </div>
             <div className="flex justify-end space-x-4 mt-6">
-                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg">Update Booking</button>
-                <button type="button" onClick={onCancel} className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg">Cancel</button>
+                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg" disabled={isSubmitting}>{isSubmitting ? 'Updating...' : 'Update Booking'}</button>
+                <button type="button" onClick={onCancel} className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg" disabled={isSubmitting}>Cancel</button>
             </div>
         </form>
     );
@@ -364,6 +364,8 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [error, setError] = useState(null);
     const [editingBooking, setEditingBooking] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
+    const [isCreateFormSubmitting, setIsCreateFormSubmitting] = useState(false);
+    const [isEditFormSubmitting, setIsEditFormSubmitting] = useState(false);
     const [users, setUsers] = useState([]); // New state for users
     const [showDetailsModal, setShowDetailsModal] = useState(false); // New state
     const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null); // New state
@@ -371,6 +373,12 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [creditsSuccess, setCreditsSuccess] = useState(null);
     const [selectedUserIdForCredits, setSelectedUserIdForCredits] = useState('');
     const [creditsAmount, setCreditsAmount] = useState(1);
+    const [isAddingCredits, setIsAddingCredits] = useState(false);
+    const [maintenanceMode, setMaintenanceMode] = useState(false);
+    const [maintenanceMessage, setMaintenanceMessage] = useState('');
+    const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+    const [maintenanceError, setMaintenanceError] = useState(null);
+    const [maintenanceSuccess, setMaintenanceSuccess] = useState(null);
 
     const handleShowDetails = useCallback((booking) => {
         setSelectedBookingForDetails(booking);
@@ -457,6 +465,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
     const handleCreateBooking = useCallback(async (newBookingData) => {
         console.log("handleCreateBooking: Attempting to create booking with data:", newBookingData);
+        setIsCreateFormSubmitting(true);
         try {
             const idToken = await currentUser.getIdToken();
             console.log("Sending new booking data to backend:", newBookingData);
@@ -482,11 +491,14 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         } catch (err) {
             console.error("handleCreateBooking: Error creating booking:", err);
             setError(`Failed to create booking: ${err.message}`);
+        } finally {
+            setIsCreateFormSubmitting(false);
         }
     }, [currentUser, fetchBookings]);
 
     const handleUpdateBooking = useCallback(async (id, updatedData) => {
         console.log("handleUpdateBooking: Attempting to update booking ID:", id, "with data:", updatedData);
+        setIsEditFormSubmitting(true);
         try {
             const idToken = await currentUser.getIdToken();
             const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/confirm-booking`, {
@@ -525,6 +537,8 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         } catch (err) {
             console.error("handleUpdateBooking: Error updating booking:", err);
             setError(`Failed to update booking: ${err.message}`);
+        } finally {
+            setIsEditFormSubmitting(false);
         }
     }, [currentUser, fetchBookings]);
 
@@ -556,6 +570,77 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         }
     }, [currentUser, fetchBookings]);
 
+    const handleConfirmBooking = useCallback(async (booking) => {
+        console.log("handleConfirmBooking: Attempting to confirm booking:", booking);
+        try {
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/confirm-booking-status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ bookingId: booking.id, userId: booking.userId }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to confirm booking');
+            }
+
+            const result = await response.json();
+            console.log("handleConfirmBooking: Booking confirmed successfully:", result);
+            setError(null);
+            fetchBookings();
+        } catch (err) {
+            console.error("handleConfirmBooking: Error confirming booking:", err);
+            setError(`Failed to confirm booking: ${err.message}`);
+        }
+    }, [currentUser, fetchBookings]);
+
+    useEffect(() => {
+        const fetchMaintenanceStatus = async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/maintenance-status`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch maintenance status');
+                }
+                const data = await response.json();
+                setMaintenanceMode(data.isEnabled);
+                setMaintenanceMessage(data.message);
+            } catch (err) {
+                setMaintenanceError(err.message);
+            }
+        };
+        fetchMaintenanceStatus();
+    }, []);
+
+    const handleUpdateMaintenanceMode = useCallback(async () => {
+        setMaintenanceLoading(true);
+        setMaintenanceError(null);
+        setMaintenanceSuccess(null);
+        try {
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/maintenance-mode`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ isEnabled: maintenanceMode, message: maintenanceMessage }),
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to update maintenance mode.');
+            }
+            setMaintenanceSuccess(data.message);
+        } catch (err) {
+            setMaintenanceError(err.message);
+        } finally {
+            setMaintenanceLoading(false);
+        }
+    }, [currentUser, maintenanceMode, maintenanceMessage]);
+
     const handleAddCredits = useCallback(async () => {
         if (!selectedUserIdForCredits || !creditsAmount) {
             setCreditsError("Please select a user and enter an amount.");
@@ -563,6 +648,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         }
         setCreditsError(null);
         setCreditsSuccess(null);
+        setIsAddingCredits(true);
         try {
             const idToken = await currentUser.getIdToken();
             const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/add-credits`, {
@@ -581,6 +667,8 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchUsers(); // Re-fetch users to update credits display
         } catch (err) {
             setCreditsError(err.message);
+        } finally {
+            setIsAddingCredits(false);
         }
     }, [currentUser, selectedUserIdForCredits, creditsAmount, fetchUsers]);
 
@@ -599,6 +687,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             onCancel={() => setIsCreating(false)}
                             currentUser={currentUser}
                             users={users}
+                            isSubmitting={isCreateFormSubmitting}
                         />
                     )}
                     {editingBooking && (
@@ -606,6 +695,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             booking={editingBooking}
                             onUpdate={handleUpdateBooking}
                             onCancel={() => setEditingBooking(null)}
+                            isSubmitting={isEditFormSubmitting}
                         />
                     )}
                     {!isCreating && !editingBooking && isAdmin && (
@@ -632,7 +722,33 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             ))}
                         </select>
                         <input type="number" value={creditsAmount} onChange={(e) => setCreditsAmount(e.target.value)} placeholder="Amount" className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
-                        <button onClick={handleAddCredits} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg">Add Credits</button>
+                        <button onClick={handleAddCredits} disabled={isAddingCredits} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg disabled:bg-gray-600">
+                            {isAddingCredits ? 'Adding...' : 'Add Credits'}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
+                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">Maintenance Mode</h2>
+                    {maintenanceError && <p className="text-red-500 text-center mb-4">{maintenanceError}</p>}
+                    {maintenanceSuccess && <p className="text-green-500 text-center mb-4">{maintenanceSuccess}</p>}
+                    <div className="flex flex-col space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-gray-300">Enable Maintenance Mode</span>
+                            <label className="switch">
+                                <input type="checkbox" checked={maintenanceMode} onChange={() => setMaintenanceMode(!maintenanceMode)} />
+                                <span className="slider round"></span>
+                            </label>
+                        </div>
+                        <textarea
+                            value={maintenanceMessage}
+                            onChange={(e) => setMaintenanceMessage(e.target.value)}
+                            placeholder="Maintenance Message"
+                            className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500"
+                        />
+                        <button onClick={handleUpdateMaintenanceMode} disabled={maintenanceLoading} className="w-full py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition shadow-lg disabled:bg-gray-600">
+                            {maintenanceLoading ? 'Saving...' : 'Save Maintenance Settings'}
+                        </button>
                     </div>
                 </div>
 
@@ -651,6 +767,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
                                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
@@ -667,9 +784,22 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                                     {booking.paymentStatus}
                                                 </span>
                                             </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.status === 'booking confirmed' ? 'bg-green-700 text-green-100' : 'bg-yellow-700 text-yellow-100'}`}>
+                                                    {booking.status}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 {isAdmin && (
                                                     <>
+                                                        {booking.status === 'waiting for confirmation' && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleConfirmBooking(booking); }}
+                                                                className="text-green-400 hover:text-green-600 mr-4"
+                                                            >
+                                                                Confirm
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); }}
                                                             className="text-indigo-400 hover:text-indigo-600 mr-4"
