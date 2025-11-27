@@ -380,6 +380,46 @@ app.post('/api/admin/send-login-details', authenticate, adminOnly, async (req, r
     }
 });
 
+app.post('/api/admin/decline-booking', authenticate, adminOnly, async (req, res) => {
+    const { bookingId, userId, calendarEventId, reason } = req.body;
+
+    if (!bookingId || !userId || !reason) {
+        return res.status(400).send({ error: 'Booking ID, User ID, and reason are required.' });
+    }
+
+    try {
+        const bookingRef = db.doc(`artifacts/${APP_ID_FOR_FIRESTORE_PATH}/users/${userId}/bookings/${bookingId}`);
+        await bookingRef.update({ status: 'declined' });
+
+        if (calendarEventId) {
+            await deleteCalendarEvent(calendarEventId);
+        }
+
+        const userRecord = await admin.auth().getUser(userId);
+        const userEmail = userRecord.email;
+
+        const mailOptions = {
+            from: process.env.GMAIL_USER,
+            to: userEmail,
+            subject: 'Your Booking Has Been Declined',
+            html: `
+                <p>Dear User,</p>
+                <p>We regret to inform you that your booking with ID ${bookingId} has been declined for the following reason:</p>
+                <p><em>${reason}</em></p>
+                <p>If you have any questions, please contact us.</p>
+                <p>Thank you,</p>
+                <p>The Booking Team</p>
+            `
+        };
+        await transporter.sendMail(mailOptions);
+
+        res.send({ success: true, message: 'Booking declined successfully.' });
+    } catch (error) {
+        console.error('Error declining booking:', error);
+        res.status(500).send({ error: 'Failed to decline booking.' });
+    }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

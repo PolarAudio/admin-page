@@ -1,0 +1,30 @@
+feat: Enhance admin booking management with new workflow and UI improvements
+
+This commit introduces significant enhancements to the admin dashboard's booking management features, focusing on a clearer workflow for pending bookings and improved user information display.
+
+Key changes include:
+
+- **Separate Pending Bookings Section:**
+  - Introduced a dedicated section at the top of the Admin Dashboard for bookings awaiting confirmation.
+  - Bookings with 'waiting for confirmation' status are now displayed here with "Accept" and "Decline" actions.
+
+- **Booking Decline Functionality:**
+  - Added a 'Declined' status option to the booking edit form.
+  - Implemented a conditional text area in the edit modal for admins to provide a reason when declining a booking.
+  - Created a new backend endpoint (`/api/admin/decline-booking`) to handle declining bookings, which:
+    - Updates the booking status in Firestore to 'declined'.
+    - Sends a customized email to the user with the decline reason.
+    - Deletes the associated Google Calendar event.
+  - Modified frontend logic to correctly pass `declineReason` and `calendarEventId` when declining.
+
+- **Improved "All Processed Bookings" Display:**
+  - The main bookings table ("All Processed Bookings") now exclusively displays bookings with 'booking confirmed' or 'declined' statuses.
+  - Bookings in this list are now sorted by date and time, with upcoming bookings appearing first.
+  - The "Confirm" action button has been removed from this section, as pending booking actions are handled separately.
+  - User display in the table changed from `UserName (UserID)` to `UserName (Email)` for better clarity.
+
+- **Modal Enhancements:**
+  - Updated booking edit modal to be scrollable with `max-h-[90vh]` and `overflow-y-auto` to prevent content overflow on smaller screens.
+  - Increased modal width from `max-w-md` to `max-w-lg` to accommodate more content.
+
+These changes streamline the admin's ability to manage bookings, provide clearer communication to users regarding booking statuses, and enhance the overall usability of the dashboard.

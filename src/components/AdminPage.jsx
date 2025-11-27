@@ -8,6 +8,7 @@ const HOURLY_RATE = 200000;
 
 import EquipmentItem from '../components/EquipmentItem';
 import BookingDetailsModal from './BookingDetailsModal'; // New Import
+import EditBookingModal from './EditBookingModal'; // New Import
 
 // CreateBookingForm Component
 const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmitting }) => {
@@ -231,128 +232,7 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
     );
 };
 
-// EditBookingForm Component
-const EditBookingForm = ({ booking, onUpdate, onCancel, isSubmitting }) => {
-    const [formData, setFormData] = useState({
-        ...booking,
-        selectedEquipment: booking.equipment ? booking.equipment.map(eq => eq.id) : [],
-        userEmail: booking.userEmail || '', // Initialize userEmail
-    });
 
-    useEffect(() => {
-        setFormData(prev => ({
-            ...prev,
-            total: parseInt(prev.duration || 0, 10) * HOURLY_RATE
-        }));
-    }, [formData.duration]);
-
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => {
-            let newFormData = { ...prev, [name]: value };
-            if (name === 'duration') {
-                newFormData.total = parseInt(value || 0, 10) * HOURLY_RATE;
-            }
-            return newFormData;
-        });
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const updatedData = {
-            ...formData,
-            equipment: formData.selectedEquipment.map(id => {
-                const equipment = DJ_EQUIPMENT.find(eq => eq.id === id);
-                return { id: equipment.id, name: equipment.name, type: equipment.type, category: equipment.category };
-            }),
-        };
-        onUpdate(formData.id, updatedData);
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="bg-gray-700 p-6 rounded-xl shadow-inner space-y-4">
-            <h2 className="text-2xl font-bold text-orange-300 mb-4">Edit Booking</h2>
-            <div>
-                <label htmlFor="edit-userName" className="block text-sm font-medium text-gray-300 mb-1">User Name</label>
-                <input type="text" id="edit-userName" name="userName" value={formData.userName} onChange={handleChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
-            </div>
-            <div>
-                <label htmlFor="edit-userId" className="block text-sm font-medium text-gray-300 mb-1">User ID</label>
-                <input type="text" id="edit-userId" name="userId" value={formData.userId} onChange={handleChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
-            </div>
-            <div>
-                <label htmlFor="edit-userEmail" className="block text-sm font-medium text-gray-300 mb-1">User Email</label>
-                <input type="email" id="edit-userEmail" name="userEmail" value={formData.userEmail} onChange={handleChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
-            </div>
-            <div>
-                <label htmlFor="edit-date" className="block text-sm font-medium text-gray-300 mb-1">Date</label>
-                <input type="date" id="edit-date" name="date" value={formData.date} onChange={handleChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
-            </div>
-            <div>
-                <label htmlFor="edit-time" className="block text-sm font-medium text-gray-300 mb-1">Time</label>
-                <input type="time" id="edit-time" name="time" value={formData.time} onChange={handleChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
-            </div>
-            <div>
-                <label htmlFor="edit-duration" className="block text-sm font-medium text-gray-300 mb-1">Duration (hours)</label>
-                <input
-                    type="number"
-                    id="edit-duration"
-                    name="duration"
-                    value={formData.duration}
-                    onChange={handleChange} required
-                    className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500"
-                />
-            </div>
-            <div>
-                <label htmlFor="edit-total" className="block text-sm font-medium text-gray-300 mb-1">Total (IDR)</label>
-                <input
-                    type="number"
-                    id="edit-total"
-                    name="total"
-                    value={formData.total}
-                    onChange={handleChange}
-                    className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500"
-                />
-            </div>
-            <div>
-                <label htmlFor="edit-paymentStatus" className="block text-sm font-medium text-gray-300 mb-1">Payment Status</label>
-                <select id="edit-paymentStatus" name="paymentStatus" value={formData.paymentStatus} onChange={handleChange} className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
-                    <option value="pending">Pending</option>
-                    <option value="paid">Paid</option>
-                </select>
-            </div>
-            <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">Equipment</label>
-                <div className="grid grid-cols-2 gap-2">
-                    {DJ_EQUIPMENT.map((equipment) => (
-                        <label key={equipment.id} className="flex items-center text-gray-300">
-                            <input
-                                type="checkbox"
-                                value={equipment.id}
-                                checked={formData.selectedEquipment.includes(equipment.id)}
-                                onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    setFormData(prev => {
-                                        const newSelectedEquipment = checked
-                                            ? [...prev.selectedEquipment, parseInt(value)]
-                                            : prev.selectedEquipment.filter(id => id !== parseInt(value));
-                                        return { ...prev, selectedEquipment: newSelectedEquipment };
-                                    });
-                                }}
-                                className="form-checkbox h-4 w-4 text-orange-600"
-                            />
-                            <span className="ml-2">{equipment.name}</span>
-                        </label>
-                    ))}
-                </div>
-            </div>
-            <div className="flex justify-end space-x-4 mt-6">
-                <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg" disabled={isSubmitting}>{isSubmitting ? 'Updating...' : 'Update Booking'}</button>
-                <button type="button" onClick={onCancel} className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg" disabled={isSubmitting}>Cancel</button>
-            </div>
-        </form>
-    );
-};
 
 // AdminPage Component
 const AdminPage = ({ app, isAdmin, currentUser }) => {
@@ -360,6 +240,8 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     console.log("AdminPage: Using appIdFromCanvas:", appIdFromCanvas);
     
     const [bookings, setBookings] = useState([]);
+    const [pendingBookings, setPendingBookings] = useState([]);
+    const [allProcessedBookings, setAllProcessedBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [editingBooking, setEditingBooking] = useState(null);
@@ -368,6 +250,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [isEditFormSubmitting, setIsEditFormSubmitting] = useState(false);
     const [users, setUsers] = useState([]); // New state for users
     const [showDetailsModal, setShowDetailsModal] = useState(false); // New state
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [selectedBookingForDetails, setSelectedBookingForDetails] = useState(null); // New state
     const [creditsError, setCreditsError] = useState(null);
     const [creditsSuccess, setCreditsSuccess] = useState(null);
@@ -444,6 +327,16 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             });
 
             setBookings(bookingsWithEmail);
+            setPendingBookings(bookingsWithEmail.filter(b => b.status === 'waiting for confirmation'));
+            setAllProcessedBookings(
+                bookingsWithEmail
+                    .filter(b => b.status !== 'waiting for confirmation')
+                    .sort((a, b) => {
+                        const dateTimeA = new Date(`${a.date}T${a.time}`);
+                        const dateTimeB = new Date(`${b.date}T${b.time}`);
+                        return dateTimeA.getTime() - dateTimeB.getTime();
+                    })
+            );
             setLoading(false);
         }, (err) => {
             console.error("AdminPage: Error fetching real-time bookings:", err);
@@ -497,6 +390,10 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     }, [currentUser, fetchBookings]);
 
     const handleUpdateBooking = useCallback(async (id, updatedData) => {
+        if (updatedData.status === 'declined') {
+            handleDeclineBooking(id, updatedData.userId, editingBooking.calendarEventId, updatedData.declineReason);
+            return;
+        }
         console.log("handleUpdateBooking: Attempting to update booking ID:", id, "with data:", updatedData);
         setIsEditFormSubmitting(true);
         try {
@@ -514,6 +411,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                         duration: updatedData.duration,
                         total: updatedData.total,
                         paymentStatus: updatedData.paymentStatus,
+                        status: updatedData.status, // Add status to the request
                         equipment: updatedData.equipment.map(eq => ({ id: eq.id, name: eq.name, type: eq.type, category: eq.category })),
                     },
                     editingBookingId: id,
@@ -532,11 +430,50 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             const result = await response.json();
             console.log("handleUpdateBooking: Booking updated successfully:", result);
             setEditingBooking(null);
+            setIsEditModalOpen(false);
             setError(null);
             fetchBookings();
         } catch (err) {
             console.error("handleUpdateBooking: Error updating booking:", err);
             setError(`Failed to update booking: ${err.message}`);
+        } finally {
+            setIsEditFormSubmitting(false);
+        }
+    }, [currentUser, fetchBookings]);
+
+    const handleDeclineBooking = useCallback(async (bookingId, userId, calendarEventId, reason) => {
+        console.log("handleDeclineBooking: Attempting to decline booking ID:", bookingId);
+        setIsEditFormSubmitting(true);
+        try {
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/decline-booking`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({
+                    bookingId,
+                    userId,
+                    calendarEventId,
+                    reason,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to decline booking');
+            }
+
+            const result = await response.json();
+            console.log("handleDeclineBooking: Booking declined successfully:", result);
+            setEditingBooking(null);
+            setIsEditModalOpen(false);
+            setError(null);
+            fetchBookings();
+        } catch (err) {
+            console.error("handleDeclineBooking: Error declining booking:", err);
+            setError(`Failed to decline booking: ${err.message}`);
         } finally {
             setIsEditFormSubmitting(false);
         }
@@ -690,14 +627,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             isSubmitting={isCreateFormSubmitting}
                         />
                     )}
-                    {editingBooking && (
-                        <EditBookingForm
-                            booking={editingBooking}
-                            onUpdate={handleUpdateBooking}
-                            onCancel={() => setEditingBooking(null)}
-                            isSubmitting={isEditFormSubmitting}
-                        />
-                    )}
+
                     {!isCreating && !editingBooking && isAdmin && (
                         <div className="flex flex-col space-y-4">
                             <button
@@ -706,6 +636,38 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             >
                                 + Add New Booking
                             </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
+                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">Pending Bookings ({pendingBookings.length})</h2>
+                    {pendingBookings.length === 0 ? (
+                        <p className="text-gray-400 text-center">No pending bookings.</p>
+                    ) : (
+                        <div className="space-y-4">
+                            {pendingBookings.map((booking) => (
+                                <div key={booking.id} className="bg-gray-700 p-4 rounded-xl shadow-md flex justify-between items-center">
+                                    <div>
+                                        <p className="text-lg font-semibold text-gray-200">{booking.userName}</p>
+                                        <p className="text-sm text-gray-400">{formatDate(booking.date)} at {formatTime(booking.time)} for {booking.duration} hrs</p>
+                                    </div>
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); handleConfirmBooking(booking); }}
+                                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-lg"
+                                        >
+                                            Accept
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); setIsEditModalOpen(true); }} // Use the Edit modal for declining
+                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-lg"
+                                        >
+                                            Decline
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </div>
@@ -753,9 +715,9 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 </div>
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
-                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">All Bookings</h2>
-                    {bookings.length === 0 ? (
-                        <p className="text-gray-400 text-center">No bookings found.</p>
+                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">All Processed Bookings ({allProcessedBookings.length})</h2>
+                    {allProcessedBookings.length === 0 ? (
+                        <p className="text-gray-400 text-center">No processed bookings found.</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-700">
@@ -772,9 +734,9 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-gray-800 divide-y divide-gray-700">
-                                    {bookings.map((booking) => (
+                                    {allProcessedBookings.map((booking) => (
                                         <tr key={booking.id} onClick={() => handleShowDetails(booking)} className="cursor-pointer hover:bg-gray-700 transition-colors duration-200">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userId || 'N/A'})</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
@@ -785,23 +747,21 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.status === 'booking confirmed' ? 'bg-green-700 text-green-100' : 'bg-yellow-700 text-yellow-100'}`}>
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                    booking.status === 'booking confirmed'
+                                                        ? 'bg-green-700 text-green-100'
+                                                        : booking.status === 'declined'
+                                                            ? 'bg-red-700 text-red-100'
+                                                            : 'bg-yellow-700 text-yellow-100'
+                                                }`}>
                                                     {booking.status}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 {isAdmin && (
                                                     <>
-                                                        {booking.status === 'waiting for confirmation' && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); handleConfirmBooking(booking); }}
-                                                                className="text-green-400 hover:text-green-600 mr-4"
-                                                            >
-                                                                Confirm
-                                                            </button>
-                                                        )}
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); }}
+                                                            onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); setIsEditModalOpen(true); }}
                                                             className="text-indigo-400 hover:text-indigo-600 mr-4"
                                                         >
                                                             Edit
@@ -828,6 +788,16 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 show={showDetailsModal}
                 onClose={handleCloseDetails}
                 booking={selectedBookingForDetails}
+            />
+            <EditBookingModal
+                show={isEditModalOpen}
+                onClose={() => {
+                    setEditingBooking(null);
+                    setIsEditModalOpen(false);
+                }}
+                booking={editingBooking}
+                onUpdate={handleUpdateBooking}
+                isSubmitting={isEditFormSubmitting}
             />
         </div>
     );
