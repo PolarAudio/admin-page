@@ -165,7 +165,7 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
                     <select id="existing-user" value={selectedUserId} onChange={handleUserSelectionChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
                         <option value="" disabled>-- Select a user --</option>
                         {users.map(user => (
-                            <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.id})</option>
+                            <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.email})</option>
                         ))}
                     </select>
                 </div>
@@ -680,7 +680,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                         <select value={selectedUserIdForCredits} onChange={(e) => setSelectedUserIdForCredits(e.target.value)} className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
                             <option value="" disabled>-- Select a user --</option>
                             {users.map(user => (
-                                <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.id}) - Credits: {user.credits || 0}</option>
+                                <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.email}) - Credits: {user.credits || 0}</option>
                             ))}
                         </select>
                         <input type="number" value={creditsAmount} onChange={(e) => setCreditsAmount(e.target.value)} placeholder="Amount" className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
