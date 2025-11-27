@@ -1,5 +1,0 @@
-feat: Display user email instead of ID in "Create Booking" user selection
-
-This commit updates the "Select User" dropdown within the "Create New Booking" form in the Admin Dashboard. Previously, it displayed the user's name followed by their User ID. This change modifies the display to show the user's name followed by their email address, providing a more intuitive and consistent user experience.
-
-The modification is applied to the `<option>` elements within the user selection dropdown in the `CreateBookingForm` component of `src/components/AdminPage.jsx`.
