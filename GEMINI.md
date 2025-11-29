@@ -22,6 +22,10 @@ This is a **React-based admin dashboard** for the DJ booking application. It all
 ## 3. Key Features & Components
 
 *   **Admin Page:** The main interface for managing bookings and users.
+*   **Booking Management:** 
+    *   **Open Bookings:** View all active and upcoming bookings. Admins can mark bookings as finished from this list.
+    *   **Finished Bookings:** View all finished bookings.
+    *   **Pending Bookings:** A separate section to view and manage bookings that are awaiting confirmation.
 *   **Login:** A dedicated login page for administrators.
 *   **Firebase Integration:** Securely authenticates administrators.
 *   **Backend API Interaction:** Communicates with the backend to fetch data and perform administrative tasks.

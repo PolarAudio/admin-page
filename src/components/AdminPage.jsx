@@ -241,7 +241,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     
     const [bookings, setBookings] = useState([]);
     const [pendingBookings, setPendingBookings] = useState([]);
-    const [allProcessedBookings, setAllProcessedBookings] = useState([]);
+    const [finishedBookings, setFinishedBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [editingBooking, setEditingBooking] = useState(null);
@@ -303,57 +303,66 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         fetchUsers();
     }, [fetchUsers]);
 
-    const fetchBookings = useCallback(() => {
+    const fetchBookings = useCallback(async () => {
         if (!isAdmin || !currentUser) {
             setLoading(false);
             setBookings([]);
-            return () => {}; // Return an empty unsubscribe function
+            return;
         }
         setLoading(true);
         setError(null);
 
-        const bookingsQuery = query(collectionGroup(db, 'bookings'));
+        try {
+            const idToken = await currentUser.getIdToken();
 
-        const unsubscribe = onSnapshot(bookingsQuery, (snapshot) => {
-            const fetchedBookings = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
+            // Fetch open bookings
+            const openBookingsResponse = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings`, {
+                headers: { 'Authorization': `Bearer ${idToken}` },
+            });
+            if (!openBookingsResponse.ok) {
+                const errorData = await openBookingsResponse.json();
+                throw new Error(errorData.message || 'Failed to fetch open bookings');
+            }
+            const openBookingsData = await openBookingsResponse.json();
 
+            // Fetch completed bookings
+            const completedBookingsResponse = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings/completed`, {
+                headers: { 'Authorization': `Bearer ${idToken}` },
+            });
+            if (!completedBookingsResponse.ok) {
+                const errorData = await completedBookingsResponse.json();
+                throw new Error(errorData.message || 'Failed to fetch completed bookings');
+            }
+            const completedBookingsData = await completedBookingsResponse.json();
+            
             // Enrich bookings with userEmail
-            const bookingsWithEmail = fetchedBookings.map(booking => {
+            const enrichBookings = (bookings) => bookings.map(booking => {
                 const user = users.find(u => u.id === booking.userId);
                 return { ...booking, userEmail: user ? user.email : 'N/A' };
             });
 
-            setBookings(bookingsWithEmail);
-            setPendingBookings(bookingsWithEmail.filter(b => b.status === 'waiting for confirmation'));
-            setAllProcessedBookings(
-                bookingsWithEmail
-                    .filter(b => b.status !== 'waiting for confirmation')
-                    .sort((a, b) => {
-                        const dateTimeA = new Date(`${a.date}T${a.time}`);
-                        const dateTimeB = new Date(`${b.date}T${b.time}`);
-                        return dateTimeA.getTime() - dateTimeB.getTime();
-                    })
-            );
-            setLoading(false);
-        }, (err) => {
-            console.error("AdminPage: Error fetching real-time bookings:", err);
-            setError(err.message);
-            setLoading(false);
-        });
+            const enrichedOpenBookings = enrichBookings(openBookingsData);
+            const enrichedFinishedBookings = enrichBookings(finishedBookingsData);
 
-        return unsubscribe; // Return the unsubscribe function
-    }, [isAdmin, currentUser, users]); // Depend on users as well
+            setOpenBookings(enrichedOpenBookings);
+            setFinishedBookings(enrichedFinishedBookings);
+
+            setPendingBookings(enrichedOpenBookings.filter(b => b.status === 'waiting for confirmation'));
+            
+            // For compatibility with other parts of the app that might use `bookings`
+            setBookings([...enrichedOpenBookings, ...enrichedCompletedBookings]);
+
+        } catch (err) {
+            console.error("AdminPage: Error fetching bookings:", err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [isAdmin, currentUser, users]);
 
     useEffect(() => {
-        console.log("AdminPage useEffect: Setting up real-time bookings listener.");
-        const unsubscribe = fetchBookings();
-        return () => {
-            console.log("AdminPage useEffect: Cleaning up real-time bookings listener.");
-            unsubscribe();
-        };
+        console.log("AdminPage useEffect: Fetching bookings.");
+        fetchBookings();
     }, [fetchBookings]);
 
     const handleCreateBooking = useCallback(async (newBookingData) => {
@@ -532,6 +541,34 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         } catch (err) {
             console.error("handleConfirmBooking: Error confirming booking:", err);
             setError(`Failed to confirm booking: ${err.message}`);
+        }
+    }, [currentUser, fetchBookings]);
+
+    const handleFinishBooking = useCallback(async (booking) => {
+        console.log("handleFinishBooking: Attempting to finish booking:", booking);
+        try {
+            const idToken = await currentUser.getIdToken();
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings/finish`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`,
+                },
+                body: JSON.stringify({ bookingId: booking.id, userId: booking.userId }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to finish booking');
+            }
+
+            const result = await response.json();
+            console.log("handleFinishBooking: Booking finished successfully:", result);
+            setError(null);
+            fetchBookings();
+        } catch (err) {
+            console.error("handleFinishBooking: Error finishing booking:", err);
+            setError(`Failed to finish booking: ${err.message}`);
         }
     }, [currentUser, fetchBookings]);
 
@@ -715,9 +752,9 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 </div>
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
-                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">All Processed Bookings ({allProcessedBookings.length})</h2>
-                    {allProcessedBookings.length === 0 ? (
-                        <p className="text-gray-400 text-center">No processed bookings found.</p>
+                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">Open Bookings ({openBookings.length})</h2>
+                    {openBookings.length === 0 ? (
+                        <p className="text-gray-400 text-center">No open bookings found.</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-700">
@@ -734,7 +771,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-gray-800 divide-y divide-gray-700">
-                                    {allProcessedBookings.map((booking) => (
+                                    {openBookings.map((booking) => (
                                         <tr key={booking.id} onClick={() => handleShowDetails(booking)} className="cursor-pointer hover:bg-gray-700 transition-colors duration-200">
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
@@ -754,6 +791,75 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                                             ? 'bg-red-700 text-red-100'
                                                             : 'bg-yellow-700 text-yellow-100'
                                                 }`}>
+                                                    {booking.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                {isAdmin && (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); setIsEditModalOpen(true); }}
+                                                            className="text-indigo-400 hover:text-indigo-600 mr-4"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteBooking(booking); }}
+                                                            className="text-red-400 hover:text-red-600 mr-4"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleFinishBooking(booking); }}
+                                                                className="text-green-400 hover:text-green-600"
+                                                            >
+                                                                Finish
+                                                            </button>
+                                                    </>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
+                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">Finished Bookings ({finishedBookings.length})</h2>
+                    {finishedBookings.length === 0 ? (
+                        <p className="text-gray-400 text-center">No finished bookings found.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-700">
+                                <thead className="bg-gray-700">
+                                    <tr>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                    {finishedBookings.map((booking) => (
+                                        <tr key={booking.id} onClick={() => handleShowDetails(booking)} className="cursor-pointer hover:bg-gray-700 transition-colors duration-200">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-400">{formatIDR(booking.total)}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.paymentStatus === 'paid' ? 'bg-green-700 text-green-100' : 'bg-yellow-700 text-yellow-100'}`}>
+                                                    {booking.paymentStatus}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-700 text-gray-100`}>
                                                     {booking.status}
                                                 </span>
                                             </td>
