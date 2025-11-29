@@ -249,8 +249,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [pendingBookings, setPendingBookings] = useState([]);
     const [openBookings, setOpenBookings] = useState([]);
     const [finishedBookings, setFinishedBookings] = useState([]);
-    const [openBookings, setOpenBookings] = useState([]);
-    const [finishedBookings, setFinishedBookings] = useState([]);
     const [openBookingsError, setOpenBookingsError] = useState(null);
     const [finishedBookingsError, setFinishedBookingsError] = useState(null);
     const [usersError, setUsersError] = useState(null);
