@@ -11,7 +11,7 @@ import BookingDetailsModal from './BookingDetailsModal'; // New Import
 import EditBookingModal from './EditBookingModal'; // New Import
 
 // CreateBookingForm Component
-const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmitting }) => {
+const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmitting, usersLoading, usersError }) => {
     const [formData, setFormData] = useState({
         userName: '',
         userId: '',
@@ -162,12 +162,18 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
             {isExistingUser ? (
                 <div>
                     <label htmlFor="existing-user" className="block text-sm font-medium text-gray-300 mb-1">Select User</label>
-                    <select id="existing-user" value={selectedUserId} onChange={handleUserSelectionChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
-                        <option value="" disabled>-- Select a user --</option>
-                        {users.map(user => (
-                            <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.email})</option>
-                        ))}
-                    </select>
+                    {usersLoading ? (
+                        <p className="text-center text-orange-200 text-sm">Loading users...</p>
+                    ) : usersError ? (
+                        <p className="text-center text-red-500 text-sm">Error loading users: {usersError}</p>
+                    ) : (
+                        <select id="existing-user" value={selectedUserId} onChange={handleUserSelectionChange} required className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
+                            <option value="" disabled>-- Select a user --</option>
+                            {users.map(user => (
+                                <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.email})</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
             ) : (
                 <>
@@ -242,8 +248,12 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [bookings, setBookings] = useState([]);
     const [pendingBookings, setPendingBookings] = useState([]);
     const [finishedBookings, setFinishedBookings] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [openBookingsError, setOpenBookingsError] = useState(null);
+    const [finishedBookingsError, setFinishedBookingsError] = useState(null);
+    const [usersError, setUsersError] = useState(null);
+    const [openBookingsLoading, setOpenBookingsLoading] = useState(true);
+    const [finishedBookingsLoading, setFinishedBookingsLoading] = useState(true);
+    const [usersLoading, setUsersLoading] = useState(true);
     const [editingBooking, setEditingBooking] = useState(null);
     const [isCreating, setIsCreating] = useState(false);
     const [isCreateFormSubmitting, setIsCreateFormSubmitting] = useState(false);
@@ -275,9 +285,11 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
     const fetchUsers = useCallback(async () => {
         if (!currentUser) {
-            setError("Authentication error. Cannot load user list.");
+            setUsersError("Authentication error. Cannot load user list.");
             return;
         }
+        setUsersLoading(true);
+        setUsersError(null);
         try {
             const idToken = await currentUser.getIdToken();
             const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/users`, {
@@ -295,7 +307,9 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             setUsers(usersData);
         } catch (err) {
             console.error("Error fetching users:", err);
-            setError(`Could not load user list: ${err.message}`);
+            setUsersError(`Could not load user list: ${err.message}`);
+        } finally {
+            setUsersLoading(false);
         }
     }, [currentUser]);
 
@@ -305,17 +319,19 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
     const fetchBookings = useCallback(async () => {
         if (!isAdmin || !currentUser) {
-            setLoading(false);
-            setBookings([]);
+            setOpenBookings([]);
+            setFinishedBookings([]);
+            setOpenBookingsLoading(false);
+            setFinishedBookingsLoading(false);
             return;
         }
-        setLoading(true);
-        setError(null);
 
+        const idToken = await currentUser.getIdToken();
+
+        // Fetch open bookings
+        setOpenBookingsLoading(true);
+        setOpenBookingsError(null);
         try {
-            const idToken = await currentUser.getIdToken();
-
-            // Fetch open bookings
             const openBookingsResponse = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings`, {
                 headers: { 'Authorization': `Bearer ${idToken}` },
             });
@@ -324,8 +340,24 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 throw new Error(errorData.message || 'Failed to fetch open bookings');
             }
             const openBookingsData = await openBookingsResponse.json();
+            const enrichedOpenBookings = openBookingsData.map(booking => {
+                const user = users.find(u => u.id === booking.userId);
+                return { ...booking, userEmail: user ? user.email : 'N/A' };
+            });
+            setOpenBookings(enrichedOpenBookings);
+            setPendingBookings(enrichedOpenBookings.filter(b => b.status === 'waiting for confirmation'));
+        } catch (err) {
+            console.error("AdminPage: Error fetching open bookings:", err);
+            setOpenBookingsError(`Failed to fetch open bookings: ${err.message}`);
+            setOpenBookings([]); // Clear open bookings on error
+        } finally {
+            setOpenBookingsLoading(false);
+        }
 
-            // Fetch finished bookings
+        // Fetch finished bookings
+        setFinishedBookingsLoading(true);
+        setFinishedBookingsError(null);
+        try {
             const finishedBookingsResponse = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings/finished`, {
                 headers: { 'Authorization': `Bearer ${idToken}` },
             });
@@ -334,31 +366,21 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 throw new Error(errorData.message || 'Failed to fetch finished bookings');
             }
             const finishedBookingsData = await finishedBookingsResponse.json();
-            
-            // Enrich bookings with userEmail
-            const enrichBookings = (bookings) => bookings.map(booking => {
+            const enrichedFinishedBookings = finishedBookingsData.map(booking => {
                 const user = users.find(u => u.id === booking.userId);
                 return { ...booking, userEmail: user ? user.email : 'N/A' };
             });
-
-            const enrichedOpenBookings = enrichBookings(openBookingsData);
-            const enrichedFinishedBookings = enrichBookings(finishedBookingsData);
-
-            setOpenBookings(enrichedOpenBookings);
             setFinishedBookings(enrichedFinishedBookings);
-
-            setPendingBookings(enrichedOpenBookings.filter(b => b.status === 'waiting for confirmation'));
-            
-            // For compatibility with other parts of the app that might use `bookings`
-            setBookings([...enrichedOpenBookings, ...enrichedFinishedBookings]);
-
         } catch (err) {
-            console.error("AdminPage: Error fetching bookings:", err);
-            setError(err.message);
+            console.error("AdminPage: Error fetching finished bookings:", err);
+            setFinishedBookingsError(`Failed to fetch finished bookings: ${err.message}`);
+            setFinishedBookings([]); // Clear finished bookings on error
         } finally {
-            setLoading(false);
+            setFinishedBookingsLoading(false);
         }
-    }, [isAdmin, currentUser, users]);
+        
+        // For compatibility with other parts of the app that might use `bookings`
+        setBookings([...enrichedOpenBookings, ...enrichedFinishedBookings]);
 
     useEffect(() => {
         console.log("AdminPage useEffect: Fetching bookings.");
@@ -388,7 +410,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             const result = await response.json();
             console.log("handleCreateBooking: Booking created successfully:", result);
             setIsCreating(false);
-            setError(null);
             fetchBookings();
         } catch (err) {
             console.error("handleCreateBooking: Error creating booking:", err);
@@ -440,7 +461,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             console.log("handleUpdateBooking: Booking updated successfully:", result);
             setEditingBooking(null);
             setIsEditModalOpen(false);
-            setError(null);
             fetchBookings();
         } catch (err) {
             console.error("handleUpdateBooking: Error updating booking:", err);
@@ -478,7 +498,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             console.log("handleDeclineBooking: Booking declined successfully:", result);
             setEditingBooking(null);
             setIsEditModalOpen(false);
-            setError(null);
             fetchBookings();
         } catch (err) {
             console.error("handleDeclineBooking: Error declining booking:", err);
@@ -508,7 +527,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
             const result = await response.json();
             console.log("handleDeleteBooking: Booking deleted successfully:", result);
-            setError(null);
             fetchBookings();
         } catch (err) {
             console.error("handleDeleteBooking: Error deleting booking:", err);
@@ -536,7 +554,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
             const result = await response.json();
             console.log("handleConfirmBooking: Booking confirmed successfully:", result);
-            setError(null);
             fetchBookings();
         } catch (err) {
             console.error("handleConfirmBooking: Error confirming booking:", err);
@@ -564,7 +581,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
             const result = await response.json();
             console.log("handleFinishBooking: Booking finished successfully:", result);
-            setError(null);
             fetchBookings();
         } catch (err) {
             console.error("handleFinishBooking: Error finishing booking:", err);
@@ -646,9 +662,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         }
     }, [currentUser, selectedUserIdForCredits, creditsAmount, fetchUsers]);
 
-    if (loading) return <div className="text-center text-orange-200 text-xl mt-8">Loading Admin Dashboard...</div>;
-    if (error) return <div className="text-center text-red-500 text-xl mt-8">Error: {error}</div>;
-
     return (
         <div className="min-h-screen bg-gray-900 text-white p-8">
             <div className="max-w-7xl mx-auto">
@@ -662,6 +675,8 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             currentUser={currentUser}
                             users={users}
                             isSubmitting={isCreateFormSubmitting}
+                            usersLoading={usersLoading}
+                            usersError={usersError}
                         />
                     )}
 
@@ -679,7 +694,11 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
                     <h2 className="text-2xl font-semibold text-orange-300 mb-6">Pending Bookings ({pendingBookings.length})</h2>
-                    {pendingBookings.length === 0 ? (
+                    {openBookingsLoading ? (
+                        <p className="text-center text-orange-200 text-xl mt-8">Loading pending bookings...</p>
+                    ) : openBookingsError ? (
+                        <p className="text-center text-red-500 text-xl mt-8">Error: {openBookingsError}</p>
+                    ) : pendingBookings.length === 0 ? (
                         <p className="text-gray-400 text-center">No pending bookings.</p>
                     ) : (
                         <div className="space-y-4">
@@ -713,18 +732,24 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                     <h2 className="text-2xl font-semibold text-orange-300 mb-6">Add Credits to User</h2>
                     {creditsError && <p className="text-red-500 text-center mb-4">{creditsError}</p>}
                     {creditsSuccess && <p className="text-green-500 text-center mb-4">{creditsSuccess}</p>}
-                    <div className="flex flex-col space-y-4">
-                        <select value={selectedUserIdForCredits} onChange={(e) => setSelectedUserIdForCredits(e.target.value)} className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
-                            <option value="" disabled>-- Select a user --</option>
-                            {users.map(user => (
-                                <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.email}) - Credits: {user.credits || 0}</option>
-                            ))}
-                        </select>
-                        <input type="number" value={creditsAmount} onChange={(e) => setCreditsAmount(e.target.value)} placeholder="Amount" className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
-                        <button onClick={handleAddCredits} disabled={isAddingCredits} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg disabled:bg-gray-600">
-                            {isAddingCredits ? 'Adding...' : 'Add Credits'}
-                        </button>
-                    </div>
+                    {usersLoading ? (
+                        <p className="text-center text-orange-200 text-xl mt-8">Loading users...</p>
+                    ) : usersError ? (
+                        <p className="text-center text-red-500 text-xl mt-8">Error: {usersError}</p>
+                    ) : (
+                        <div className="flex flex-col space-y-4">
+                            <select value={selectedUserIdForCredits} onChange={(e) => setSelectedUserIdForCredits(e.target.value)} className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500">
+                                <option value="" disabled>-- Select a user --</option>
+                                {users.map(user => (
+                                    <option key={user.id} value={user.id}>{user.displayName || user.email} ({user.email}) - Credits: {user.credits || 0}</option>
+                                ))}
+                            </select>
+                            <input type="number" value={creditsAmount} onChange={(e) => setCreditsAmount(e.target.value)} placeholder="Amount" className="w-full p-3 border border-gray-600 rounded-xl bg-gray-900 text-white focus:ring focus:ring-orange-500" />
+                            <button onClick={handleAddCredits} disabled={isAddingCredits} className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg disabled:bg-gray-600">
+                                {isAddingCredits ? 'Adding...' : 'Add Credits'}
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
@@ -753,7 +778,11 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
                     <h2 className="text-2xl font-semibold text-orange-300 mb-6">Open Bookings ({openBookings.length})</h2>
-                    {openBookings.length === 0 ? (
+                    {openBookingsLoading ? (
+                        <p className="text-center text-orange-200 text-xl mt-8">Loading open bookings...</p>
+                    ) : openBookingsError ? (
+                        <p className="text-center text-red-500 text-xl mt-8">Error: {openBookingsError}</p>
+                    ) : openBookings.length === 0 ? (
                         <p className="text-gray-400 text-center">No open bookings found.</p>
                     ) : (
                         <div className="overflow-x-auto">
@@ -828,7 +857,11 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
                     <h2 className="text-2xl font-semibold text-orange-300 mb-6">Finished Bookings ({finishedBookings.length})</h2>
-                    {finishedBookings.length === 0 ? (
+                    {finishedBookingsLoading ? (
+                        <p className="text-center text-orange-200 text-xl mt-8">Loading finished bookings...</p>
+                    ) : finishedBookingsError ? (
+                        <p className="text-center text-red-500 text-xl mt-8">Error: {finishedBookingsError}</p>
+                    ) : finishedBookings.length === 0 ? (
                         <p className="text-gray-400 text-center">No finished bookings found.</p>
                     ) : (
                         <div className="overflow-x-auto">
