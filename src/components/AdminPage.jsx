@@ -381,6 +381,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         
         // For compatibility with other parts of the app that might use `bookings`
         setBookings([...enrichedOpenBookings, ...enrichedFinishedBookings]);
+    }, [isAdmin, currentUser, users]);
 
     useEffect(() => {
         console.log("AdminPage useEffect: Fetching bookings.");
