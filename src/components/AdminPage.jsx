@@ -325,15 +325,15 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             }
             const openBookingsData = await openBookingsResponse.json();
 
-            // Fetch completed bookings
-            const completedBookingsResponse = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings/completed`, {
+            // Fetch finished bookings
+            const finishedBookingsResponse = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings/finished`, {
                 headers: { 'Authorization': `Bearer ${idToken}` },
             });
-            if (!completedBookingsResponse.ok) {
-                const errorData = await completedBookingsResponse.json();
-                throw new Error(errorData.message || 'Failed to fetch completed bookings');
+            if (!finishedBookingsResponse.ok) {
+                const errorData = await finishedBookingsResponse.json();
+                throw new Error(errorData.message || 'Failed to fetch finished bookings');
             }
-            const completedBookingsData = await completedBookingsResponse.json();
+            const finishedBookingsData = await finishedBookingsResponse.json();
             
             // Enrich bookings with userEmail
             const enrichBookings = (bookings) => bookings.map(booking => {
@@ -350,7 +350,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             setPendingBookings(enrichedOpenBookings.filter(b => b.status === 'waiting for confirmation'));
             
             // For compatibility with other parts of the app that might use `bookings`
-            setBookings([...enrichedOpenBookings, ...enrichedCompletedBookings]);
+            setBookings([...enrichedOpenBookings, ...enrichedFinishedBookings]);
 
         } catch (err) {
             console.error("AdminPage: Error fetching bookings:", err);
