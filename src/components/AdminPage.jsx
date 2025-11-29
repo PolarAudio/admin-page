@@ -414,7 +414,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleCreateBooking: Error creating booking:", err);
-            setError(`Failed to create booking: ${err.message}`);
         } finally {
             setIsCreateFormSubmitting(false);
         }
@@ -465,7 +464,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleUpdateBooking: Error updating booking:", err);
-            setError(`Failed to update booking: ${err.message}`);
         } finally {
             setIsEditFormSubmitting(false);
         }
@@ -502,7 +500,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleDeclineBooking: Error declining booking:", err);
-            setError(`Failed to decline booking: ${err.message}`);
         } finally {
             setIsEditFormSubmitting(false);
         }
@@ -531,7 +528,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleDeleteBooking: Error deleting booking:", err);
-            setError(`Failed to delete booking: ${err.message}`);
         }
     }, [currentUser, fetchBookings]);
 
@@ -558,7 +554,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleConfirmBooking: Error confirming booking:", err);
-            setError(`Failed to confirm booking: ${err.message}`);
         }
     }, [currentUser, fetchBookings]);
 
@@ -585,7 +580,6 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleFinishBooking: Error finishing booking:", err);
-            setError(`Failed to finish booking: ${err.message}`);
         }
     }, [currentUser, fetchBookings]);
 
