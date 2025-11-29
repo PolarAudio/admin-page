@@ -231,8 +231,8 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
                 </div>
             </div>
             <div className="flex justify-end space-x-4 mt-6">
-                <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition shadow-lg" disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create Booking'}</button>
-                <button type="button" onClick={onCancel} className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg" disabled={isSubmitting}>Cancel</button>
+                <button type="submit" className="py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition shadow-lg" disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create Booking'}</button>
+                <button type="button" onClick={onCancel} className="py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg" disabled={isSubmitting}>Cancel</button>
             </div>
         </form>
     );
@@ -789,30 +789,30 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             <table className="min-w-full divide-y divide-gray-700">
                                 <thead className="bg-gray-700">
                                     <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                                     {openBookings.map((booking) => (
                                         <tr key={booking.id} onClick={() => handleShowDetails(booking)} className="cursor-pointer hover:bg-gray-700 transition-colors duration-200">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-400">{formatIDR(booking.total)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <td className="py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-orange-400">{formatIDR(booking.total)}</td>
+                                            <td className="py-4 whitespace-nowrap text-sm">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.paymentStatus === 'paid' ? 'bg-green-700 text-green-100' : 'bg-yellow-700 text-yellow-100'}`}>
                                                     {booking.paymentStatus}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <td className="py-4 whitespace-nowrap text-sm">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                                     booking.status === 'booking confirmed'
                                                         ? 'bg-green-700 text-green-100'
@@ -823,7 +823,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                                     {booking.status}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <td className="py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 {isAdmin && (
                                                     <>
                                                         <button
@@ -868,35 +868,35 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                             <table className="min-w-full divide-y divide-gray-700">
                                 <thead className="bg-gray-700">
                                     <tr>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                                     {finishedBookings.map((booking) => (
                                         <tr key={booking.id} onClick={() => handleShowDetails(booking)} className="cursor-pointer hover:bg-gray-700 transition-colors duration-200">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-orange-400">{formatIDR(booking.total)}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <td className="py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
+                                            <td className="py-4 whitespace-nowrap text-sm text-orange-400">{formatIDR(booking.total)}</td>
+                                            <td className="py-4 whitespace-nowrap text-sm">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.paymentStatus === 'paid' ? 'bg-green-700 text-green-100' : 'bg-yellow-700 text-yellow-100'}`}>
                                                     {booking.paymentStatus}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            <td className="py-4 whitespace-nowrap text-sm">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-700 text-gray-100`}>
                                                     {booking.status}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <td className="py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 {isAdmin && (
                                                     <>
                                                         <button
