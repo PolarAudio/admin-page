@@ -328,6 +328,9 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
         const idToken = await currentUser.getIdToken();
 
+        let currentEnrichedOpenBookings = [];
+        let currentEnrichedFinishedBookings = [];
+
         // Fetch open bookings
         setOpenBookingsLoading(true);
         setOpenBookingsError(null);
@@ -340,16 +343,17 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 throw new Error(errorData.message || 'Failed to fetch open bookings');
             }
             const openBookingsData = await openBookingsResponse.json();
-            const enrichedOpenBookings = openBookingsData.map(booking => {
+            currentEnrichedOpenBookings = openBookingsData.map(booking => {
                 const user = users.find(u => u.id === booking.userId);
                 return { ...booking, userEmail: user ? user.email : 'N/A' };
             });
-            setOpenBookings(enrichedOpenBookings);
-            setPendingBookings(enrichedOpenBookings.filter(b => b.status === 'waiting for confirmation'));
+            setOpenBookings(currentEnrichedOpenBookings);
+            setPendingBookings(currentEnrichedOpenBookings.filter(b => b.status === 'waiting for confirmation'));
         } catch (err) {
             console.error("AdminPage: Error fetching open bookings:", err);
             setOpenBookingsError(`Failed to fetch open bookings: ${err.message}`);
             setOpenBookings([]); // Clear open bookings on error
+            setPendingBookings([]); // Clear pending bookings on error
         } finally {
             setOpenBookingsLoading(false);
         }
@@ -366,11 +370,11 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 throw new Error(errorData.message || 'Failed to fetch finished bookings');
             }
             const finishedBookingsData = await finishedBookingsResponse.json();
-            const enrichedFinishedBookings = finishedBookingsData.map(booking => {
+            currentEnrichedFinishedBookings = finishedBookingsData.map(booking => {
                 const user = users.find(u => u.id === booking.userId);
                 return { ...booking, userEmail: user ? user.email : 'N/A' };
             });
-            setFinishedBookings(enrichedFinishedBookings);
+            setFinishedBookings(currentEnrichedFinishedBookings);
         } catch (err) {
             console.error("AdminPage: Error fetching finished bookings:", err);
             setFinishedBookingsError(`Failed to fetch finished bookings: ${err.message}`);
@@ -380,7 +384,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
         }
         
         // For compatibility with other parts of the app that might use `bookings`
-        setBookings([...enrichedOpenBookings, ...enrichedFinishedBookings]);
+        setBookings([...currentEnrichedOpenBookings, ...currentEnrichedFinishedBookings]);
     }, [isAdmin, currentUser, users]);
 
     useEffect(() => {
