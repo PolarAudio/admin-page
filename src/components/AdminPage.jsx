@@ -776,7 +776,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                     </div>
                 </div>
 
-                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
+                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
                     <h2 className="text-2xl font-semibold text-orange-300 mb-6">Open Bookings ({openBookings.length})</h2>
                     {openBookingsLoading ? (
                         <p className="text-center text-orange-200 text-xl mt-8">Loading open bookings...</p>
@@ -855,7 +855,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                     )}
                 </div>
 
-                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 border border-gray-700">
+                <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
                     <h2 className="text-2xl font-semibold text-orange-300 mb-6">Finished Bookings ({finishedBookings.length})</h2>
                     {finishedBookingsLoading ? (
                         <p className="text-center text-orange-200 text-xl mt-8">Loading finished bookings...</p>
