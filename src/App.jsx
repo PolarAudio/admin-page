@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { auth, db } from './firebase/init';
+import { auth, db, messaging } from './firebase/init';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getToken, onMessage } from 'firebase/messaging';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
 import AdminPage from './components/AdminPage';
 import Login from './components/Login';
 import './App.css';
@@ -45,6 +48,96 @@ function App() {
 
     return () => clearInterval(intervalId); // Clean up interval on unmount
   }, []);
+
+  // Push Notifications Setup (Native & Web)
+  useEffect(() => {
+    if (isAdmin && user) {
+      const saveTokenToFirestore = async (token) => {
+        try {
+          const appIdFromCanvas = 'booking-app-1af02';
+          const userProfilePath = `artifacts/${appIdFromCanvas}/users/${user.uid}/profiles/userProfile`;
+          const userDocRef = doc(db, userProfilePath);
+          await updateDoc(userDocRef, {
+            fcmToken: token,
+            lastTokenUpdate: new Date().toISOString()
+          });
+          console.log('FCM Token saved to Firestore');
+        } catch (err) {
+          console.error('Error saving FCM token:', err);
+        }
+      };
+
+      if (Capacitor.isNativePlatform()) {
+        // --- Native (Android/iOS) Logic ---
+        const registerNativePush = async () => {
+          let permStatus = await PushNotifications.checkPermissions();
+
+          if (permStatus.receive === 'prompt') {
+            permStatus = await PushNotifications.requestPermissions();
+          }
+
+          if (permStatus.receive !== 'granted') {
+            console.warn('User denied permissions!');
+            return;
+          }
+
+          await PushNotifications.register();
+
+          PushNotifications.addListener('registration', async (token) => {
+            console.log('Push registration success, token: ' + token.value);
+            saveTokenToFirestore(token.value);
+          });
+
+          PushNotifications.addListener('registrationError', (error) => {
+            console.error('Error on registration: ' + JSON.stringify(error));
+          });
+
+          PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            console.log('Push received: ' + JSON.stringify(notification));
+          });
+
+          PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+            console.log('Push action performed: ' + JSON.stringify(notification));
+          });
+        };
+        registerNativePush();
+      } else {
+        // --- Web Logic ---
+        const registerWebPush = async () => {
+          try {
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+              const token = await getToken(messaging, {
+                vapidKey: 'BKfMdRTYv0LtMFxU2C9pR27UA6Ej7UOSu5CIb-L_OxlWGF7TKkMba_DporlBGRJsSD4xUXP_N5DitespnC0LRUE' // Requires VAPID key - see below
+              });
+              if (token) {
+                console.log('Web Push Token:', token);
+                saveTokenToFirestore(token);
+              } else {
+                console.log('No registration token available. Request permission to generate one.');
+              }
+            } else {
+               console.log('Unable to get permission to notify.');
+            }
+          } catch (err) {
+             console.log('An error occurred while retrieving token. ', err);
+          }
+        };
+
+        registerWebPush();
+        
+        // Listen for messages when app is in foreground
+        onMessage(messaging, (payload) => {
+          console.log('Message received. ', payload);
+          // Optional: Customize how you show the notification in the UI (e.g., a toast)
+          new Notification(payload.notification.title, {
+            body: payload.notification.body,
+            icon: '/polar.svg'
+          });
+        });
+      }
+    }
+  }, [isAdmin, user]);
 
   useEffect(() => {
     console.log("App.jsx: useEffect - onAuthStateChanged listener setup");
