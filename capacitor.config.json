@@ -1,5 +1,13 @@
 {
   "appId": "com.djbooking.admin",
-  "appName": "DJBookingAdmin",
-  "webDir": "dist"
+  "appName": "DJ Booking Admin",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["google.com"],
+      "googleClientId": "909871533345-bvbgqcooi8mrqtbbo6itop70av28i98r.apps.googleusercontent.com"
+    }
+  }
 }

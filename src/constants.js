@@ -14,3 +14,4 @@ export const DJ_EQUIPMENT = [
 	{ id: 12, name: 'Headphones', type: 'Headphones', icon: '🎧', category: 'extra' }
 ];
 export const ROOM_RATE_PER_HOUR = 200000;
+export const EXTRA_EQUIPMENT_PRICE = 50000;

@@ -1,8 +1,6 @@
 import React from 'react';
 import Modal from './Modal';
-import { DJ_EQUIPMENT } from '../constants';
-
-const HOURLY_RATE = 200000;
+import { DJ_EQUIPMENT, ROOM_RATE_PER_HOUR, EXTRA_EQUIPMENT_PRICE } from '../constants';
 
 // EditBookingForm Component
 const EditBookingForm = ({ booking, onUpdate, onCancel, isSubmitting }) => {
@@ -12,21 +10,32 @@ const EditBookingForm = ({ booking, onUpdate, onCancel, isSubmitting }) => {
         userEmail: booking.userEmail || '', // Initialize userEmail
         status: booking.status || 'waiting for confirmation', // Initialize status
         declineReason: '', // Add declineReason to state
+        cdjCount: booking.cdjCount || 2,
     });
+
+    const calculateTotal = (duration, selectedEquipmentIds, cdjCount) => {
+        const roomTotal = parseInt(duration || 0, 10) * ROOM_RATE_PER_HOUR;
+        const extraEquipmentCount = selectedEquipmentIds.reduce((acc, id) => {
+            const equipment = DJ_EQUIPMENT.find(eq => eq.id === id);
+            return acc + (equipment && equipment.category === 'extra' ? 1 : 0);
+        }, 0);
+        const extraCdjCount = (selectedEquipmentIds.includes(1) && cdjCount > 2) ? (cdjCount - 2) : 0;
+        return roomTotal + (extraEquipmentCount + extraCdjCount) * EXTRA_EQUIPMENT_PRICE;
+    };
 
     React.useEffect(() => {
         setFormData(prev => ({
             ...prev,
-            total: parseInt(prev.duration || 0, 10) * HOURLY_RATE
+            total: calculateTotal(prev.duration, prev.selectedEquipment, prev.cdjCount)
         }));
-    }, [formData.duration]);
+    }, [formData.duration, formData.selectedEquipment, formData.cdjCount]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => {
             let newFormData = { ...prev, [name]: value };
             if (name === 'duration') {
-                newFormData.total = parseInt(value || 0, 10) * HOURLY_RATE;
+                newFormData.total = calculateTotal(value, prev.selectedEquipment, prev.cdjCount);
             }
             return newFormData;
         });
@@ -40,6 +49,7 @@ const EditBookingForm = ({ booking, onUpdate, onCancel, isSubmitting }) => {
                 const equipment = DJ_EQUIPMENT.find(eq => eq.id === id);
                 return { id: equipment.id, name: equipment.name, type: equipment.type, category: equipment.category };
             }),
+            cdjCount: formData.selectedEquipment.includes(1) ? formData.cdjCount : null, // 1 is Pioneer CDJ-3000
         };
         onUpdate(formData.id, updatedData);
     };
@@ -143,6 +153,27 @@ const EditBookingForm = ({ booking, onUpdate, onCancel, isSubmitting }) => {
                     ))}
                 </div>
             </div>
+            {formData.selectedEquipment.includes(1) && (
+                <div className="mt-4 p-4 bg-gray-900 rounded-xl border border-orange-500/30">
+                    <label className="block text-sm font-medium text-orange-300 mb-2">Number of CDJ-3000s</label>
+                    <div className="flex space-x-4">
+                        {[2, 3, 4].map(count => (
+                            <button
+                                key={count}
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, cdjCount: count }))}
+                                className={`px-4 py-2 rounded-lg font-bold transition ${
+                                    formData.cdjCount === count
+                                        ? 'bg-orange-500 text-white'
+                                        : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                }`}
+                            >
+                                {count} Units
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             <div className="flex justify-end space-x-4 mt-6">
                 <button type="submit" className="px-6 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition shadow-lg" disabled={isSubmitting}>{isSubmitting ? 'Updating...' : 'Update Booking'}</button>
                 <button type="button" onClick={onCancel} className="px-6 py-3 bg-gray-600 text-white rounded-xl font-semibold hover:bg-gray-700 transition shadow-lg" disabled={isSubmitting}>Cancel</button>

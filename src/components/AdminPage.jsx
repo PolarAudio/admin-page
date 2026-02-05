@@ -2,9 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { formatIDR, formatDate, formatTime } from '../utils';
 import { auth, db } from '../firebase/init';
 import { collectionGroup, query, getDocs, onSnapshot } from 'firebase/firestore';
-import { DJ_EQUIPMENT } from '../constants';
-
-const HOURLY_RATE = 200000;
+import { DJ_EQUIPMENT, ROOM_RATE_PER_HOUR, EXTRA_EQUIPMENT_PRICE } from '../constants';
 
 import EquipmentItem from '../components/EquipmentItem';
 import BookingDetailsModal from './BookingDetailsModal'; // New Import
@@ -18,9 +16,10 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
         date: '',
         time: '',
         duration: 2,
-        total: 2 * HOURLY_RATE,
+        total: 2 * ROOM_RATE_PER_HOUR,
         paymentStatus: 'pending',
         selectedEquipment: [], // New state for selected equipment
+        cdjCount: 2,
     });
     const [isExistingUser, setIsExistingUser] = useState(false);
     const [selectedUserId, setSelectedUserId] = useState('');
@@ -31,19 +30,26 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
 	const extra = useMemo(() => DJ_EQUIPMENT.filter(eq => eq.category === 'extra'), []);
 	const [selectedEquipment, setSelectedEquipment] = useState([]);
 
+    const calculateTotal = (duration, equipment, cdjCount) => {
+        const roomTotal = parseInt(duration || 0, 10) * ROOM_RATE_PER_HOUR;
+        const extraEquipmentCount = equipment.filter(eq => eq.category === 'extra').length;
+        const extraCdjCount = (equipment.some(eq => eq.name === 'Pioneer CDJ-3000') && cdjCount > 2) ? (cdjCount - 2) : 0;
+        return roomTotal + (extraEquipmentCount + extraCdjCount) * EXTRA_EQUIPMENT_PRICE;
+    };
+
     useEffect(() => {
         setFormData(prev => ({
             ...prev,
-            total: parseInt(prev.duration || 0, 10) * HOURLY_RATE
+            total: calculateTotal(prev.duration, selectedEquipment, prev.cdjCount)
         }));
-    }, [formData.duration]);
+    }, [formData.duration, selectedEquipment, formData.cdjCount]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => {
             let newFormData = { ...prev, [name]: value };
             if (name === 'duration') {
-                newFormData.total = parseInt(value || 0, 10) * HOURLY_RATE;
+                newFormData.total = calculateTotal(value, selectedEquipment, prev.cdjCount);
             }
             return newFormData;
         });
@@ -84,6 +90,7 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
                     total: formData.total,
                     paymentStatus: formData.paymentStatus,
                     equipment: selectedEquipment.map(eq => ({ id: eq.id, name: eq.name, type: eq.type, category: eq.category })),
+                    cdjCount: selectedEquipment.some(eq => eq.name === 'Pioneer CDJ-3000') ? formData.cdjCount : null,
                 },
                 userId: selectedUser.id,
                 userName: selectedUser.displayName,
@@ -120,6 +127,7 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
                         total: formData.total,
                         paymentStatus: formData.paymentStatus,
                         equipment: selectedEquipment.map(eq => ({ id: eq.id, name: eq.name, type: eq.type, category: eq.category })),
+                        cdjCount: selectedEquipment.some(eq => eq.name === 'Pioneer CDJ-3000') ? formData.cdjCount : null,
                     },
                     userId: finalUserId,
                     userName: finalUserName,
@@ -219,6 +227,28 @@ const CreateBookingForm = ({ onCreate, onCancel, currentUser, users, isSubmittin
 						{players.map(eq => <EquipmentItem key={eq.id} equipment={eq} isSelected={selectedEquipment.some(i => i.id === eq.id)} onToggle={toggleEquipment} />)}
                     </div>
 
+                    {selectedEquipment.some(eq => eq.name === 'Pioneer CDJ-3000') && (
+                        <div className="mt-4 p-4 bg-gray-900 rounded-xl border border-orange-500/30">
+                            <label className="block text-sm font-medium text-orange-300 mb-2">Number of CDJ-3000s</label>
+                            <div className="flex space-x-4">
+                                {[2, 3, 4].map(count => (
+                                    <button
+                                        key={count}
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, cdjCount: count }))}
+                                        className={`px-4 py-2 rounded-lg font-bold transition ${
+                                            formData.cdjCount === count
+                                                ? 'bg-orange-500 text-white'
+                                                : 'bg-gray-700 text-gray-400 hover:bg-gray-600'
+                                        }`}
+                                    >
+                                        {count} Units
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     <h3 className="text-lg font-semibold text-gray-300 mb-2 mt-4">Mixers</h3>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Optional: add grid here */}
 						{mixers.map(eq => <EquipmentItem key={eq.id} equipment={eq} isSelected={selectedEquipment.some(i => i.id === eq.id)} onToggle={toggleEquipment} />)}
@@ -273,6 +303,10 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [maintenanceLoading, setMaintenanceLoading] = useState(false);
     const [maintenanceError, setMaintenanceError] = useState(null);
     const [maintenanceSuccess, setMaintenanceSuccess] = useState(null);
+
+    const [finishedBookingsCollapsed, setFinishedBookingsCollapsed] = useState(true);
+    const [finishedBookingsPage, setFinishedBookingsPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     const handleShowDetails = useCallback((booking) => {
         setSelectedBookingForDetails(booking);
@@ -448,6 +482,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                         paymentStatus: updatedData.paymentStatus,
                         status: updatedData.status, // Add status to the request
                         equipment: updatedData.equipment.map(eq => ({ id: eq.id, name: eq.name, type: eq.type, category: eq.category })),
+                        cdjCount: updatedData.cdjCount,
                     },
                     editingBookingId: id,
                     userId: updatedData.userId,
@@ -856,68 +891,108 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                 </div>
 
                 <div className="bg-gray-800 shadow-2xl rounded-2xl p-6 mb-8 border border-gray-700">
-                    <h2 className="text-2xl font-semibold text-orange-300 mb-6">Finished Bookings ({finishedBookings.length})</h2>
-                    {finishedBookingsLoading ? (
-                        <p className="text-center text-orange-200 text-xl mt-8">Loading finished bookings...</p>
-                    ) : finishedBookingsError ? (
-                        <p className="text-center text-red-500 text-xl mt-8">Error: {finishedBookingsError}</p>
-                    ) : finishedBookings.length === 0 ? (
-                        <p className="text-gray-400 text-center">No finished bookings found.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-700">
-                                <thead className="bg-gray-700">
-                                    <tr>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                                        <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-gray-800 divide-y divide-gray-700">
-                                    {finishedBookings.map((booking) => (
-                                        <tr key={booking.id} onClick={() => handleShowDetails(booking)} className="cursor-pointer hover:bg-gray-700 transition-colors duration-200">
-                                            <td className="py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
-                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
-                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
-                                            <td className="py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
-                                            <td className="py-4 whitespace-nowrap text-sm text-orange-400">{formatIDR(booking.total)}</td>
-                                            <td className="py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.paymentStatus === 'paid' ? 'bg-green-700 text-green-100' : 'bg-yellow-700 text-yellow-100'}`}>
-                                                    {booking.paymentStatus}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 whitespace-nowrap text-sm">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-700 text-gray-100`}>
-                                                    {booking.status}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                {isAdmin && (
-                                                    <>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); setIsEditModalOpen(true); }}
-                                                            className="text-indigo-400 hover:text-indigo-600 mr-4"
-                                                        >
-                                                            Edit
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDeleteBooking(booking); }}
-                                                            className="text-red-400 hover:text-red-600"
-                                                        >
-                                                            Delete
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                    <div 
+                        className="flex justify-between items-center cursor-pointer"
+                        onClick={() => setFinishedBookingsCollapsed(!finishedBookingsCollapsed)}
+                    >
+                        <h2 className="text-2xl font-semibold text-orange-300">Finished Bookings ({finishedBookings.length})</h2>
+                        <span className="text-orange-300 text-2xl">
+                            {finishedBookingsCollapsed ? '▼' : '▲'}
+                        </span>
+                    </div>
+                    
+                    {!finishedBookingsCollapsed && (
+                        <div className="mt-6">
+                            {finishedBookingsLoading ? (
+                                <p className="text-center text-orange-200 text-xl mt-8">Loading finished bookings...</p>
+                            ) : finishedBookingsError ? (
+                                <p className="text-center text-red-500 text-xl mt-8">Error: {finishedBookingsError}</p>
+                            ) : finishedBookings.length === 0 ? (
+                                <p className="text-gray-400 text-center">No finished bookings found.</p>
+                            ) : (
+                                <>
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full divide-y divide-gray-700">
+                                            <thead className="bg-gray-700">
+                                                <tr>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">User</th>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Time</th>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Duration</th>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Total</th>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Payment</th>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                                                    <th scope="col" className="py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-gray-800 divide-y divide-gray-700">
+                                                {finishedBookings
+                                                    .slice((finishedBookingsPage - 1) * ITEMS_PER_PAGE, finishedBookingsPage * ITEMS_PER_PAGE)
+                                                    .map((booking) => (
+                                                    <tr key={booking.id} onClick={() => handleShowDetails(booking)} className="cursor-pointer hover:bg-gray-700 transition-colors duration-200">
+                                                        <td className="py-4 whitespace-nowrap text-sm font-medium text-gray-100">{booking.userName || 'N/A'} ({booking.userEmail || 'N/A'})</td>
+                                                        <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatDate(booking.date)}</td>
+                                                        <td className="py-4 whitespace-nowrap text-sm text-gray-300">{formatTime(booking.time)}</td>
+                                                        <td className="py-4 whitespace-nowrap text-sm text-gray-300">{booking.duration} hrs</td>
+                                                        <td className="py-4 whitespace-nowrap text-sm text-orange-400">{formatIDR(booking.total)}</td>
+                                                        <td className="py-4 whitespace-nowrap text-sm">
+                                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${booking.paymentStatus === 'paid' ? 'bg-green-700 text-green-100' : 'bg-yellow-700 text-yellow-100'}`}>
+                                                                {booking.paymentStatus}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 whitespace-nowrap text-sm">
+                                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-700 text-gray-100`}>
+                                                                {booking.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                            {isAdmin && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); setIsEditModalOpen(true); }}
+                                                                        className="text-indigo-400 hover:text-indigo-600 mr-4"
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); handleDeleteBooking(booking); }}
+                                                                        className="text-red-400 hover:text-red-600"
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    {/* Pagination Controls */}
+                                    {finishedBookings.length > ITEMS_PER_PAGE && (
+                                        <div className="flex justify-center items-center space-x-4 mt-6">
+                                            <button
+                                                onClick={() => setFinishedBookingsPage(prev => Math.max(prev - 1, 1))}
+                                                disabled={finishedBookingsPage === 1}
+                                                className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 hover:bg-gray-600 transition"
+                                            >
+                                                Previous
+                                            </button>
+                                            <span className="text-gray-300">
+                                                Page {finishedBookingsPage} of {Math.ceil(finishedBookings.length / ITEMS_PER_PAGE)}
+                                            </span>
+                                            <button
+                                                onClick={() => setFinishedBookingsPage(prev => Math.min(prev + 1, Math.ceil(finishedBookings.length / ITEMS_PER_PAGE)))}
+                                                disabled={finishedBookingsPage >= Math.ceil(finishedBookings.length / ITEMS_PER_PAGE)}
+                                                className="px-4 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 hover:bg-gray-600 transition"
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
                 </div>

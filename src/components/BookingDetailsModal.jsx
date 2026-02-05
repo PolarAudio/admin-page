@@ -5,9 +5,14 @@ import { formatIDR, formatDate, formatTime } from '../utils';
 const BookingDetailsModal = ({ show, onClose, booking }) => {
     if (!booking) return null;
 
-    const formatEquipment = (equipment) => {
+    const formatEquipment = (equipment, cdjCount) => {
         if (!equipment || equipment.length === 0) return 'None';
-        const players = equipment.filter(item => item.category === 'player').map(item => item.name || item.id);
+        const players = equipment.filter(item => item.category === 'player').map(item => {
+            if (item.name === 'Pioneer CDJ-3000' && cdjCount) {
+                return `${item.name} (x${cdjCount})`;
+            }
+            return item.name || item.id;
+        });
         const mixers = equipment.filter(item => item.category === 'mixer').map(item => item.name || item.id);
         const extras = equipment.filter(item => item.category === 'extra').map(item => item.name || item.id);
 
@@ -36,7 +41,7 @@ const BookingDetailsModal = ({ show, onClose, booking }) => {
                 {booking.equipment && booking.equipment.length > 0 && (
                     <div>
                         <strong>Equipment:</strong>
-                        <pre className="whitespace-pre-wrap text-gray-400 mt-2 p-3 bg-gray-700 rounded-lg">{formatEquipment(booking.equipment)}</pre>
+                        <pre className="whitespace-pre-wrap text-gray-400 mt-2 p-3 bg-gray-700 rounded-lg">{formatEquipment(booking.equipment, booking.cdjCount)}</pre>
                     </div>
                 )}
             </div>

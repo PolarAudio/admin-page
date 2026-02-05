@@ -1,7 +1,9 @@
 // src/components/Login.jsx
 import React, { useState, useEffect } from 'react';
 import { auth } from '../firebase/init';
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signInWithCredential } from 'firebase/auth';
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication';
+import { Capacitor } from '@capacitor/core';
 
 const Login = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
@@ -37,11 +39,22 @@ const Login = ({ onLoginSuccess }) => {
         setLoading(true);
         setError(null);
         try {
-            const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            if (Capacitor.isNativePlatform()) {
+                // Native Google Login
+                console.log("Starting native Google login...");
+                const result = await FirebaseAuthentication.signInWithGoogle();
+                console.log("Native Google login result:", result);
+                const credential = GoogleAuthProvider.credential(result.credential.idToken);
+                await signInWithCredential(auth, credential);
+            } else {
+                // Web Google Login
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            }
             // onLoginSuccess will be called by the onAuthStateChanged listener
         } catch (err) {
             setError(err.message);
+            console.error("Google login error details:", JSON.stringify(err, null, 2));
             console.error("Google login error:", err);
         } finally {
             setLoading(false);
