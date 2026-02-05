@@ -289,6 +289,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
     const [isCreating, setIsCreating] = useState(false);
     const [isCreateFormSubmitting, setIsCreateFormSubmitting] = useState(false);
     const [isEditFormSubmitting, setIsEditFormSubmitting] = useState(false);
+    const [isActionLoading, setIsActionLoading] = useState(false);
     const [users, setUsers] = useState([]); // New state for users
     const [showDetailsModal, setShowDetailsModal] = useState(false); // New state
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -573,6 +574,7 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
 
     const handleConfirmBooking = useCallback(async (booking) => {
         console.log("handleConfirmBooking: Attempting to confirm booking:", booking);
+        setIsActionLoading(true);
         try {
             const idToken = await currentUser.getIdToken();
             const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/confirm-booking-status`, {
@@ -594,11 +596,14 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleConfirmBooking: Error confirming booking:", err);
+        } finally {
+            setIsActionLoading(false);
         }
     }, [currentUser, fetchBookings]);
 
     const handleFinishBooking = useCallback(async (booking) => {
         console.log("handleFinishBooking: Attempting to finish booking:", booking);
+        setIsActionLoading(true);
         try {
             const idToken = await currentUser.getIdToken();
             const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/admin/bookings/finish`, {
@@ -620,6 +625,8 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
             fetchBookings();
         } catch (err) {
             console.error("handleFinishBooking: Error finishing booking:", err);
+        } finally {
+            setIsActionLoading(false);
         }
     }, [currentUser, fetchBookings]);
 
@@ -746,13 +753,15 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                     <div className="flex space-x-2">
                                         <button
                                             onClick={(e) => { e.stopPropagation(); handleConfirmBooking(booking); }}
-                                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-lg"
+                                            disabled={isActionLoading}
+                                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-lg disabled:opacity-50"
                                         >
-                                            Accept
+                                            {isActionLoading ? '...' : 'Accept'}
                                         </button>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); setEditingBooking(booking); setIsEditModalOpen(true); }} // Use the Edit modal for declining
-                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-lg"
+                                            disabled={isActionLoading}
+                                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-lg disabled:opacity-50"
                                         >
                                             Decline
                                         </button>
@@ -869,15 +878,17 @@ const AdminPage = ({ app, isAdmin, currentUser }) => {
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleDeleteBooking(booking); }}
-                                                            className="text-red-400 hover:text-red-600 mr-4"
+                                                            disabled={isActionLoading}
+                                                            className="text-red-400 hover:text-red-600 mr-4 disabled:opacity-50"
                                                         >
                                                             Delete
                                                         </button>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleFinishBooking(booking); }}
-                                                                className="text-green-400 hover:text-green-600"
+                                                                disabled={isActionLoading}
+                                                                className="text-green-400 hover:text-green-600 disabled:opacity-50"
                                                             >
-                                                                Finish
+                                                                {isActionLoading ? '...' : 'Finish'}
                                                             </button>
                                                     </>
                                                 )}
